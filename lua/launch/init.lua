@@ -22,6 +22,7 @@ local fs = require 'launch.util.fs'
 local async = require 'plenary.async'
 local seq = require 'launch.util.seq'
 local result = require 'launch.util.result'
+local project = require 'launch.util.project'
 
 local function parse_option(item)
   local field, rest = item:match('^([%w|_]+)%s*(.*)$')
@@ -59,6 +60,11 @@ local function load(fileName)
 end
 
 async.run(function ()
-  local result = load('/tmp/test.txt')
-  D(result)
+	result.seq(function ()
+		local config_file = project.launch_config():yield()
+		print(config_file)
+		--local result = load('/tmp/test.txt')
+		--D(result)
+
+	end)
 end)

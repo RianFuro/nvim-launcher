@@ -19,6 +19,22 @@ function Result:map(cb)
   end
 end
 
+function Result:map_error(cb)
+	if self:ok() then
+		return self
+	else
+		return M(cb(self[1]), self[2])
+	end
+end
+
+function Result:match(cb, cbe)
+	if self:ok() then
+		return cb(self[2])
+	else
+		return cbe(self[1])
+	end
+end
+
 function Result:flatten()
   if self:ok() then
     return self[2]
@@ -33,6 +49,22 @@ end
 
 function Result:yield()
   return co.yield(SCOPE, self)
+end
+
+function M.from(value, err)
+	if value == nil then 
+		return M(err or true, nil) 
+	else
+		return M(nil, value)
+	end
+end
+
+function M.error(err)
+	return M(err or true)
+end
+
+function M.success(value)
+	return M(nil, value)
 end
 
 -- Sequence a batch of operations that would return results by unwrapping the result behind the scenes.
