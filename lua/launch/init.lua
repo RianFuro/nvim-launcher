@@ -1,11 +1,11 @@
 -- TODO:
--- [ ] configuration
+-- [x] configuration
 -- [ ] process management
 -- [ ] process controller ui
 
 
 -- configuration:
--- [ ] configuration parser
+-- [x] configuration parser
 -- [ ] .idea importer?
 -- [ ] npm importer?
 -- [ ] in-memory representation
@@ -23,6 +23,7 @@ local async = require 'plenary.async'
 local seq = require 'launch.util.seq'
 local result = require 'launch.util.result'
 local project = require 'launch.util.project'
+local float = require 'plenary.window.float'
 
 local function parse_option(item)
   local field, rest = item:match('^([%w|_]+)%s*(.*)$')
@@ -35,11 +36,9 @@ local function parse_option(item)
   return {field, value}
 end
 
-local function load(fileName)
-  assert(type(fileName) == 'string', 'Parameter "fileName" must be a string.')
-
+local function load(path)
   return result.seq(function ()
-    local content = fs.read_file(fileName):yield()
+    local content = fs.read_file(path.filename):yield()
 
     -- TODO: parse_option could fail if the format is invalid, so this needs to be a result.
     return seq.from_iter(content:gmatch("[^\r\n]+"))
@@ -56,15 +55,41 @@ local function load(fileName)
             end, {})
         }
       end)
+      :collect()
   end)
 end
 
-async.run(function ()
-	result.seq(function ()
-		local config_file = project.launch_config():yield()
-		print(config_file)
-		--local result = load('/tmp/test.txt')
-		--D(result)
+local configuration = {}
+local loading = true
 
-	end)
+--reactive?
+local function open_window()
+  local win, buf = float.centered()
+
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
+    "test"
+  })
+end
+
+async.run(function ()
+  local config = seq.from(
+    project.launch_config()
+      :bind(load)
+      :unwrap_or({})
+  ):map(function (item)
+    return {
+      name = item.title,
+      cmd = item.params.cmd,
+      working_directory = item.params.working_directory,
+      source = 'ide'
+    }
+  end):collect()
+
+  configuration = config
+  loading = false
+
+  async.util.scheduler()
+  open_window()
 end)
+
+

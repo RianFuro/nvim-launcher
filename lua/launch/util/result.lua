@@ -35,6 +35,14 @@ function Result:match(cb, cbe)
 	end
 end
 
+function Result:unwrap()
+  return self:match(function (v) return v end, function (err) error(err, 2) end)
+end
+
+function Result:unwrap_or(default)
+  return self:match(function (v) return v end, function () return default end)
+end
+
 function Result:flatten()
   if self:ok() then
     return self[2]

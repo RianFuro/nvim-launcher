@@ -102,7 +102,9 @@ function Seq:window_when(cb)
       end
     end
 
-    non_empty_seq(batch)
+    local ret = non_empty_seq(batch)
+    batch = {}
+    return ret
   end
 
   return self
@@ -123,7 +125,9 @@ function Seq:window_before(cb)
       end
     end
 
-    non_empty_seq(batch)
+    local ret = non_empty_seq(batch)
+    batch = {}
+    return ret
   end
 
   return self
