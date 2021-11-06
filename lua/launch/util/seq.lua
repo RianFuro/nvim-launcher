@@ -63,7 +63,7 @@ function Seq:flatten()
 
   self.__it = function ()
     local value = inner_it()
-    if not value then
+    while not value do
       local inner = it()
       if not inner then return nil end
       inner_it = M.from(inner):iter()

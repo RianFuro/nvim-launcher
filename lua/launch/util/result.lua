@@ -60,8 +60,8 @@ function Result:yield()
 end
 
 function M.from(value, err)
-	if value == nil then 
-		return M(err or true, nil) 
+	if value == nil then
+		return M(err or true, nil)
 	else
 		return M(nil, value)
 	end
