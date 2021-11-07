@@ -160,6 +160,7 @@ function M.from(ls)
   -- We're not using ipairs here so proxy objects can be iterated
   --
   local idx = 1
+  ls = ls or {}
 
   local value_it = function ()
     local v = ls[idx]

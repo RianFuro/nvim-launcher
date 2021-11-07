@@ -1,6 +1,8 @@
 local view = require 'launch.util.view'
 local state = require 'launch.util.view.state'
 local component = require 'launch.util.view.component'
+local bindings_gateway = require 'launch.util.view.bindings_gateway'
+local seq = require 'launch.util.seq'
 local block = component.block
 
 describe('component', function ()
@@ -12,8 +14,8 @@ describe('component', function ()
 
   it('passes all keyword parameters from the invocation to the callback', function ()
     component(function (props)
-      assert.equal(1, props.a) 
-      assert.equal(2, props.b) 
+      assert.equal(1, props.a)
+      assert.equal(2, props.b)
     end)({ a = 1, b = 2 })
   end)
 
@@ -31,7 +33,7 @@ describe('component', function ()
       }
     end)
 
-    assert.are.same({'hello', 'world'}, result)
+    assert.are.same({'hello', 'world'}, seq.from(result):collect())
   end)
 
   it('flattens down nested components to a single list when rendered', function ()
@@ -46,13 +48,13 @@ describe('component', function ()
       }
     end)
 
-    assert.are.same({'hello', 'you', 'handsome', 'being'}, result)
+    assert.are.same({'hello', 'you', 'handsome', 'being'}, seq.from(result):collect())
   end)
 
   describe('block', function ()
     it('returns its children', function ()
-      local c = block { 'hello', 'world' } 
-      assert.are.same({ 'hello', 'world' }, c)
+      local c = block { 'hello', 'world' }
+      assert.are.same({ 'hello', 'world' }, seq.from(c):collect())
     end)
 
     it('inserts lines equal to margin_block_start before its children', function ()
@@ -61,7 +63,7 @@ describe('component', function ()
         'hello, world'
       }
 
-      assert.are.same({ '', '', 'hello, world' }, c)
+      assert.are.same({ '', '', 'hello, world' }, seq.from(c):collect())
     end)
 
     it('inserts lines equal to margin_block_end after its children', function ()
@@ -70,7 +72,7 @@ describe('component', function ()
         'hello, world'
       }
 
-      assert.are.same({ 'hello, world', '', '' }, c)
+      assert.are.same({ 'hello, world', '', '' }, seq.from(c):collect())
     end)
   end)
 end)
@@ -170,7 +172,7 @@ describe('view', function ()
         'hello',
         'world'
       }
-    end) 
+    end)
 
     assert.are.same({ 'hello', 'world' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
   end)
@@ -183,9 +185,24 @@ describe('view', function ()
         'hello',
         props.text
       }
-    end, { text = 'world' }) 
+    end, { text = 'world' })
 
     v.state.text = 'you handsome being'
     assert.are.same({ 'hello', 'you handsome being' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
+  end)
+end)
+
+describe('bindings gateway', function ()
+  it('can register buffer local bindings for lua functions', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+    bindings_gateway.register(bufnr, 'n', 'asdf', function ()
+      trigger = true
+    end)
+
+    vim.fn.feedkeys("asdf")
+    vim.fn.feedkeys('', 'x')
+
+    assert.is_true(trigger)
   end)
 end)
