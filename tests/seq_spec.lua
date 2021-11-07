@@ -57,6 +57,13 @@ describe('seq', function ()
     end)
   end)
 
+  describe('.repeat', function ()
+    it('repeats the value n times', function ()
+      local s = seq.rep('', 3):collect()
+      assert.are.same({'','',''}, s) 
+    end)
+  end)
+
   describe(':reduce', function ()
     it('executes the callback for each item', function ()
       local ls = {1,2,3}
@@ -142,16 +149,27 @@ describe('seq', function ()
       local ls = {{1,2},{3,4}}
       local s = seq.from(ls):flatten()
 
-      assert.equal(1, s:pop())
-      assert.equal(2, s:pop())
-      assert.equal(3, s:pop())
-      assert.equal(4, s:pop())
+      assert.are.same({1,2,3,4}, s:collect())
     end)
 
     it('skips over empty lists', function ()
       local s = seq.from({{}, {1,2}}):flatten()
-      assert.equal(1, s:pop())
-      assert.equal(2, s:pop())
+      assert.are.same({1,2}, s:collect())
+    end)
+  end)
+
+  describe(':concat', function ()
+    it('appends a seq', function ()
+      local s = seq.from({1,2})
+      local s2 = seq.from({3,4})
+
+      assert.are.same({1,2,3,4}, s:concat(s2):collect())
+    end)
+
+    it('+ does concat', function ()
+      local s = seq.from({1,2}) + seq.from({3,4})
+
+      assert.are.same({1,2,3,4}, s:collect())
     end)
   end)
 

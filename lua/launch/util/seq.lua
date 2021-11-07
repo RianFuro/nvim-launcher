@@ -80,6 +80,29 @@ function Seq:flat_map(cb)
   return self:map(cb):flatten()
 end
 
+function Seq:concat(other)
+  local it = self.__it
+  local other_it = other.__it
+  local it_consumed = false
+
+  self.__it = function ()
+    local value
+
+    if not it_consumed then
+      value = it()  
+      if not value then it_consumed = true end
+    end
+
+    if not value then
+      value = other_it()
+    end
+
+    return value
+  end
+
+  return self
+end
+
 local function non_empty_seq(ls)
   if #ls > 0 then
     return M.from(ls)
@@ -134,11 +157,14 @@ function Seq:window_before(cb)
 end
 
 function M.from(ls)
-  local it = ipairs(ls)
-  local idx = 0
+  -- We're not using ipairs here so proxy objects can be iterated
+  --
+  local idx = 1
 
   local value_it = function ()
-    local _, v = it(ls, idx)
+    local v = ls[idx]
+    if v == nil then return nil end
+
     idx = idx + 1
     return v
   end
@@ -147,7 +173,20 @@ function M.from(ls)
 end
 
 function M.from_iter(it)
-  return setmetatable({ __it = it }, { __index = Seq })
+  return setmetatable({ __it = it }, { 
+    __index = Seq,
+    __add = Seq.concat
+  })
+end
+
+function M.rep(val, times)
+  local i = 0
+
+  return M.from_iter(function ()
+    i = i + 1
+    if i <= times then return val end
+    return nil
+  end)
 end
 
 setmetatable(M, {

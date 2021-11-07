@@ -1,9 +1,7 @@
--- TODO:
--- [ ] proxy object
--- [ ] basically build an observable?
 local M = {}
 
 local K_SUBSCRIBERS = {}
+local K_STATE = {}
 
 local function publish_change(self)
   for _, cb in ipairs(self[K_SUBSCRIBERS]) do
@@ -27,6 +25,8 @@ function M.new(init)
       t[k] = v
     end
   end
+
+  proxy[K_STATE] = t
 
   return setmetatable(proxy, {
     __index = function (_, k)

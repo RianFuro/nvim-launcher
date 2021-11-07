@@ -1,7 +1,7 @@
 -- TODO:
 -- [x] configuration
 -- [ ] process management
--- [ ] process controller ui
+-- [/] process controller ui
 
 
 -- configuration:
@@ -19,29 +19,32 @@
 -- working_directory = ""
 
 local async = require 'plenary.async'
+local seq = require 'launch.util.seq'
 local float = require 'plenary.window.float'
 local cfg = require 'launch.configuration'
+local view = require 'launch.util.view'
 
-local configuration = {}
-local loading = true
-
---reactive?
-local function open_window()
-  local win, buf = float.centered()
-
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, {
-    "test"
-  })
-end
+local block = require 'launch.util.view.component'.block
 
 async.run(function ()
   local config = cfg.get()
 
-  configuration = config
-  loading = false
-
   async.util.scheduler()
-  open_window()
+  view.popup(function (props)
+    local rows = seq.from(props.entries)
+      :map(function (e)
+        return block {
+          margin_block_end = 1,
+          e.name .. ': ' .. e.cmd
+        }
+      end)
+      :collect()
+
+    return block {
+      margin_block_start = 2,
+      rows
+    }
+  end, {
+    entries = config
+  })
 end)
-
-
