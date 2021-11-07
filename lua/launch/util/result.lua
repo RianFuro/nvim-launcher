@@ -105,12 +105,8 @@ function M.seq(cb)
     -- go up the chain. So we yield and put the result back into the loop.
     -- This allows, for example, to contain the result executor in an async executor and still "await" asynchronous
     -- operations from within the result routine.
-    elseif co.isyieldable() then
-      return step(co.yield(select(2, ...)))
-
-    -- If the yield is not in our "scope" but we are not in another coroutine we are effectively stuck and error out.
     else
-      error("found unknown scope, but cannot yield!")
+      return step(co.yield(select(2, ...)))
     end
   end
   step = function (...)
