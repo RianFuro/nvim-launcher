@@ -35,13 +35,11 @@ local function start_job(e)
   local j = job:new {
     command = cmd:pop(),
     args = cmd:collect(),
-    on_stdout = function (_, line)
+    on_stdout = vim.schedule_wrap(function (_, line)
       if line then
-        vim.schedule(function ()
-          state.append(e.output, line)
-        end)
+        state.append(e.output, line)
       end
-    end,
+    end),
     on_exit = function ()
       e.job = nil
     end
