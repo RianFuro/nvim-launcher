@@ -27,14 +27,16 @@ function Seq:pop()
 end
 
 function Seq:take(n)
-  local t = {}
+  local it = self.__it
   local idx = 1
-  while idx <= n do
-    table.insert(t, self.__it())
+
+  self.__it = function ()
+    if idx > n then return nil end
     idx = idx + 1
+    return it()
   end
 
-  return t
+  return self
 end
 
 function Seq:filter(cb)

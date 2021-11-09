@@ -66,7 +66,7 @@ describe('seq', function ()
 
   describe('.repeat', function ()
     it('repeatedly emits the given value', function ()
-      local s = seq.rep(''):take(3)
+      local s = seq.rep(''):take(3):collect()
       assert.are.same({'','',''}, s)
     end)
   end)

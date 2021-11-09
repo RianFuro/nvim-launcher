@@ -41,12 +41,14 @@ local function view(bufno, root_component, initial_state)
   end
 
   local function update()
-    local data = component.render(root_component, s)
-    clean_callbacks()
-    register_bindings(data.bindings)
-    --print(vim.inspect(bindings))
-    data.bindings = nil
-    vim.api.nvim_buf_set_lines(bufno, 0, -1, false, data)
+    vim.schedule(function ()
+      local data = component.render(root_component, s)
+      clean_callbacks()
+      register_bindings(data.bindings)
+      --print(vim.inspect(bindings))
+      data.bindings = nil
+      vim.api.nvim_buf_set_lines(bufno, 0, -1, false, data)
+    end)
   end
 
   state.subscribe(s, function ()
