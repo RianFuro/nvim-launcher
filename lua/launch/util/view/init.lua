@@ -40,17 +40,21 @@ local function view(bufno, root_component, initial_state)
     end
   end
 
-  local update = vim.schedule_wrap(function ()
+  local function update()
     local data = component.render(root_component, s)
     clean_callbacks()
     register_bindings(data.bindings)
     --print(vim.inspect(bindings))
     data.bindings = nil
     vim.api.nvim_buf_set_lines(bufno, 0, -1, false, data)
-  end)
+  end
 
   state.subscribe(s, function ()
-    update()
+    if vim.in_fast_event() then
+      vim.schedule(update)
+    else
+      update()
+    end
   end)
 
   update()
@@ -61,7 +65,7 @@ local function view(bufno, root_component, initial_state)
 end
 
 function M.popup(...)
-  local bufnr = vim.api.nvim_create_buf(false, false)
+  local bufnr = vim.api.nvim_create_buf(false, true)
   local winnr = popup.create(bufnr, {
     border = true,
     width = 80,

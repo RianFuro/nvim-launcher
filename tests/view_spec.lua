@@ -171,6 +171,23 @@ describe('state', function ()
     assert.equal(s.ls[1], 1)
   end)
 
+  describe('.plain', function ()
+
+    it('gets back the plain value of an observable', function ()
+      local s = state.new { __marker = true }
+      assert.equal(nil, rawget(s, '__marker'))
+      local p = state.plain(s)
+      assert.equal(true, rawget(p, '__marker'))
+    end)
+
+    it('returns back the value if its not an observable', function ()
+      assert.equal(1, state.plain(1))
+      local s = state.new { a = 1 }
+      assert.equal(1, state.plain(s.a)) -- s.a will return the plain value `1` (not an observable)
+    end)
+
+  end)
+
   it('subscription returns an unsubscribe function that removes the callback', function ()
     local s = state.new {
       a = 1

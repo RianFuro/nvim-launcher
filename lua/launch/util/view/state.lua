@@ -9,6 +9,24 @@ local function publish_change(self)
   end
 end
 
+local Observable = {
+  __index = function (self, k)
+    return self[K_STATE][k]
+  end,
+  __len = function (self)
+    return #self[K_STATE]
+  end,
+  __newindex = function (self, k, v)
+    if type(v) == 'table' then
+      v = M.new(v)
+      M.subscribe(v, function () publish_change(self) end)
+    end
+    self[K_STATE][k] = v
+
+    publish_change(self)
+  end
+}
+
 function M.new(init)
   assert(type(init) == 'table', 'state needs to be a table')
 
@@ -29,23 +47,11 @@ function M.new(init)
 
   proxy[K_STATE] = t
 
-  return setmetatable(proxy, {
-    __index = function (_, k)
-      return t[k]
-    end,
-    __len = function (self)
-      return #self[K_STATE]
-    end,
-    __newindex = function (self, k, v)
-      if type(v) == 'table' then
-        v = M.new(v)
-        M.subscribe(v, function () publish_change(self) end)
-      end
-      t[k] = v
+  return setmetatable(proxy, Observable)
+end
 
-      publish_change(self)
-    end
-  })
+function M.is(s)
+  return getmetatable(s) == Observable
 end
 
 function M.subscribe(state, cb)
@@ -64,6 +70,11 @@ end
 function M.append(ls, item)
   local len = #ls[K_STATE]
   ls[len + 1] = item
+end
+
+function M.plain(s)
+  if M.is(s) then return s[K_STATE]
+  else return s end
 end
 
 return M

@@ -102,7 +102,7 @@ function Seq:concat(other)
     local value
 
     if not it_consumed then
-      value = it()  
+      value = it()
       if not value then it_consumed = true end
     end
 

@@ -49,8 +49,9 @@ local function start_job(e)
   e.job = j
 end
 
+local config = nil
 async.run(function ()
-  local config = cfg.get()
+  config = cfg.get()
 
   async.util.scheduler()
   view.popup(function (props)
@@ -69,7 +70,7 @@ async.run(function ()
               end
             },
             (e.job and 'R' or 'S') .. ' ' .. e.name .. ': ' .. e.cmd,
-            e.output or {}
+            e.output
           }
         }
       end)
