@@ -61,4 +61,9 @@ function M.subscribe(state, cb)
   end
 end
 
+function M.append(ls, item)
+  local len = #ls[K_STATE]
+  ls[len + 1] = item
+end
+
 return M

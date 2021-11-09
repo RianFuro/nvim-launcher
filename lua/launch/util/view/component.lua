@@ -30,9 +30,9 @@ M.block = component(function (props)
   local margin_block_end = props.margin_block_end or 0
 
   local children =
-    seq.rep('', margin_block_start)
+    seq.rep(''):take(margin_block_start)
     + seq.from(props.children)
-    + seq.rep('', margin_block_end)
+    + seq.rep(''):take(margin_block_end)
 
   return children:collect()
 end)

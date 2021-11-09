@@ -23,10 +23,11 @@ local seq = require 'launch.util.seq'
 local cfg = require 'launch.configuration'
 local view = require 'launch.util.view'
 local job = require 'plenary.job'
+local state = require 'launch.util.view.state'
 
 local block = require 'launch.util.view.component'.block
 
-local function start_job(e, on_exit)
+local function start_job(e)
   e.output = {}
 
   --TODO: needs a better parser, since args can have the space quoted.
@@ -37,13 +38,11 @@ local function start_job(e, on_exit)
     on_stdout = function (_, line)
       if line then
         vim.schedule(function ()
-          -- weird hack but ok
-          local new_idx = getmetatable(e.output).__len(e.output) + 1
-          e.output[new_idx] = line
+          state.append(e.output, line)
         end)
       end
     end,
-    on_exit = on_exit or function ()
+    on_exit = function ()
       e.job = nil
     end
   }

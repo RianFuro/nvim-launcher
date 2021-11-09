@@ -148,6 +148,29 @@ describe('state', function ()
     assert.is_true(trigger)
   end)
 
+  it('converts a table set after init to a proxy object', function ()
+    local trigger = false
+    local s = state.new { }
+    s.sub = { a = 1 }
+
+    state.subscribe(s, function () trigger = true end)
+    s.sub.a = 2
+    assert.is_true(trigger)
+  end)
+
+  it('has a helper to append an item to a list', function ()
+    local trigger = false
+    local s = state.new {
+      ls = {}
+    }
+
+    state.subscribe(s, function () trigger = true end)
+    state.append(s.ls, 1)
+
+    assert.is_true(trigger)
+    assert.equal(s.ls[1], 1)
+  end)
+
   it('subscription returns an unsubscribe function that removes the callback', function ()
     local s = state.new {
       a = 1

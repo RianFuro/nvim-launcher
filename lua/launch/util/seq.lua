@@ -26,6 +26,17 @@ function Seq:pop()
   return self.__it()
 end
 
+function Seq:take(n)
+  local t = {}
+  local idx = 1
+  while idx <= n do
+    table.insert(t, self.__it())
+    idx = idx + 1
+  end
+
+  return t
+end
+
 function Seq:filter(cb)
   local it = self.__it
 
@@ -173,20 +184,31 @@ function M.from(ls)
   return M.from_iter(value_it)
 end
 
+function M.reverse(ls)
+  ls = ls or {}
+  local idx = #ls
+
+  local value_it = function ()
+    local v = ls[idx]
+    if v == nil then return nil end
+
+    idx = idx - 1
+    return v
+  end
+
+  return M.from_iter(value_it)
+end
+
 function M.from_iter(it)
-  return setmetatable({ __it = it }, { 
+  return setmetatable({ __it = it }, {
     __index = Seq,
     __add = Seq.concat
   })
 end
 
-function M.rep(val, times)
-  local i = 0
-
+function M.rep(val)
   return M.from_iter(function ()
-    i = i + 1
-    if i <= times then return val end
-    return nil
+    return val
   end)
 end
 
