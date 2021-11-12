@@ -67,9 +67,8 @@ local function flatten_component(component_result, context)
                 :map(function (b)
                   return {
                     chord = b.chord,
-                    cb = b.cb,
-                    start = acc.current_line,
-                    fin = acc.current_line + #rows
+                    handle = b.cb,
+                    range = {acc.current_line, acc.current_line + #rows}
                   }
                 end),
           current_line = nested.current_line

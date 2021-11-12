@@ -30,6 +30,8 @@ local Observable = {
 function M.new(init)
   assert(type(init) == 'table', 'state needs to be a table')
 
+  if M.is_state(init) then return init end
+
   local t = {}
   local proxy = {
     [K_SUBSCRIBERS] = {}
@@ -50,7 +52,7 @@ function M.new(init)
   return setmetatable(proxy, Observable)
 end
 
-function M.is(s)
+function M.is_state(s)
   return getmetatable(s) == Observable
 end
 
@@ -73,7 +75,7 @@ function M.append(ls, item)
 end
 
 function M.plain(s)
-  if M.is(s) then return s[K_STATE]
+  if M.is_state(s) then return s[K_STATE]
   else return s end
 end
 

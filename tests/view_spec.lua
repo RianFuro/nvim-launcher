@@ -51,6 +51,54 @@ describe('component', function ()
     assert.are.same({'hello', 'you', 'handsome', 'being'}, seq.from(result):collect())
   end)
 
+  it('collects keybindings on a `bindings` field', function ()
+    local fn = function () end
+    local result = component.render(component(function ()
+      return {}
+    end), {
+      on = {
+        [" "] = fn
+      }
+    })
+
+    assert.equal(1, #result.bindings)
+    assert.equal(fn, result.bindings[1].handle)
+    assert.equal(' ', result.bindings[1].chord)
+  end)
+
+  it('tracks line numbers of keybindings', function ()
+    local result = component.render(function ()
+      return {
+        block {
+          on = {
+            [' '] = function () end
+          },
+          'pre'
+        },
+        'hello',
+        block {
+          on ={
+            [' '] = function () end
+          },
+          'mid'
+        },
+        'world',
+        block {
+          on = {
+            [' '] = function () end
+          },
+          'post',
+          'rows'
+        }
+      }
+    end)
+
+    assert.equal(3, #result.bindings)
+    assert.are.same({0,1}, result.bindings[1].range)
+    assert.are.same({2,3}, result.bindings[2].range)
+    assert.are.same({4,6}, result.bindings[3].range)
+  end)
+
   describe('block', function ()
     it('returns its children', function ()
       local c = block { 'hello', 'world' }
@@ -188,6 +236,16 @@ describe('state', function ()
 
   end)
 
+  describe('.is_state', function ()
+    it('returns true if the argument is wrapped in an observable', function ()
+      assert.is_true(state.is_state(state.new({})))
+    end)
+
+    it('returns false if the argument is just a table', function ()
+      assert.is_false(state.is_state({}))
+    end)
+  end)
+
   it('subscription returns an unsubscribe function that removes the callback', function ()
     local s = state.new {
       a = 1
@@ -230,6 +288,82 @@ describe('view', function ()
     v.state.text = 'you handsome being'
     assert.are.same({ 'hello', 'you handsome being' }, vim.api.nvim_buf_get_lines(bufnr, 0, -1, false))
   end)
+
+  it('registers keybindings', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+
+    view(bufnr, function (props)
+      return block {
+        on = {
+          ["asdf"] = function ()
+            trigger = true
+          end,
+        },
+        'hello',
+        props.text
+      }
+    end, { text = 'world' })
+
+    vim.cmd("normal asdf")
+
+    assert.is_true(trigger)
+  end)
+
+  it('executes bindings only when the cursor is on the correct line', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+
+    view(bufnr, function (props)
+      return block {
+        'hello',
+        block {
+          on = {
+            ["asdf"] = function ()
+              trigger = true
+            end,
+          },
+          props.text
+        }
+      }
+    end, { text = 'world' })
+
+    vim.cmd("normal asdf")
+    assert.is_false(trigger)
+
+    vim.fn.setpos('.', {bufnr, 2, 1, 0})
+    vim.cmd("normal asdf")
+    assert.is_true(trigger)
+  end)
+
+  it('executes all callbacks enclosing the cursor', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local counter = 0
+
+    local function increase_counter()
+      counter = counter + 1
+    end
+
+    view(bufnr, function (props)
+      return block {
+        on = {
+          ["asdf"] = increase_counter
+        },
+        'hello',
+        block {
+          on = {
+            ["asdf"] = increase_counter
+          },
+          props.text
+        }
+      }
+    end, { text = 'world' })
+
+    vim.fn.setpos('.', {bufnr, 2, 1, 0})
+    vim.cmd("normal asdf")
+
+    assert.equal(2, counter)
+  end)
 end)
 
 describe('bindings gateway', function ()
@@ -240,9 +374,21 @@ describe('bindings gateway', function ()
       trigger = true
     end)
 
-    vim.fn.feedkeys("asdf")
-    vim.fn.feedkeys('', 'x')
+    vim.cmd("normal asdf")
 
     assert.is_true(trigger)
+  end)
+
+  it('can remove a previously set binding on a buffer', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+    bindings_gateway.register(bufnr, 'n', 'asdf', function ()
+      trigger = true
+    end)
+    bindings_gateway.remove(bufnr, 'n', 'asdf')
+
+    vim.cmd("normal asdf")
+
+    assert.is_false(trigger)
   end)
 end)

@@ -1,4 +1,3 @@
-local async = require 'plenary.async'
 local M = {}
 
 local callback_register = {}

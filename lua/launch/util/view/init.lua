@@ -29,8 +29,9 @@ local function view(bufno, root_component, initial_state)
           local pos = vim.fn.getpos('.')
           local line_nr = pos[2] - 1
           for _, x in ipairs(bindings[b.chord]) do
-            if line_nr >= x.start and line_nr < x.fin then
-              x.cb()
+            local from, to = unpack(x.range)
+            if line_nr >= from and line_nr < to then
+              x.handle()
             end
           end
         end)
@@ -49,7 +50,7 @@ local function view(bufno, root_component, initial_state)
     vim.api.nvim_buf_set_lines(bufno, 0, -1, false, data)
   end
 
-  state.subscribe(s, function ()
+  local unsubscribe = state.subscribe(s, function ()
     if vim.in_fast_event() then
       vim.schedule(update)
     else
@@ -60,22 +61,38 @@ local function view(bufno, root_component, initial_state)
   update()
 
   return {
-    state = s
+    state = s,
+    teardown = function ()
+      unsubscribe()
+      clean_callbacks()
+    end
   }
 end
 
-function M.popup(...)
+function M.popup(popup_options, ...)
   local bufnr = vim.api.nvim_create_buf(false, true)
   local winnr = popup.create(bufnr, {
     border = true,
-    width = 80,
-    height = 20,
-    minheight = 20
+    width = popup_options.width,
+    height = popup_options.height,
+    minwidth = popup_options.width,
+    minheight = popup_options.height,
+    row = popup_options.row,
+    col = popup_options.col
   })
 
   local context = view(bufnr, ...)
   context.bufnr = bufnr
   context.winnr = winnr
+
+  local _teardown = context.teardown
+  context.teardown = function ()
+    _teardown()
+    if vim.api.nvim_win_is_valid(winnr) then
+      vim.api.nvim_win_close(winnr, true)
+    end
+  end
+
   return context
 end
 
