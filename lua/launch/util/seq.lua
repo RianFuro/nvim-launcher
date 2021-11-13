@@ -186,6 +186,28 @@ function M.from(ls)
   return M.from_iter(value_it)
 end
 
+function M.keys(m)
+  local it, _, k = pairs(m)
+  local value_it = function ()
+    k = it(m, k)
+    return k
+  end
+
+  return M.from_iter(value_it)
+end
+
+function M.values(m)
+  local it, _, k = pairs(m)
+  local value
+
+  local value_it = function ()
+    k, value = it(m, k)
+    return value
+  end
+
+  return M.from_iter(value_it)
+end
+
 function M.reverse(ls)
   ls = ls or {}
   local idx = #ls

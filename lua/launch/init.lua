@@ -20,7 +20,7 @@
 
 local async = require 'plenary.async'
 local seq = require 'launch.util.seq'
-local cfg = require 'launch.configuration'
+--local cfg = require 'launch.configuration'
 local view = require 'launch.util.view'
 local state = require 'launch.util.view.state'
 local bindings = require 'launch.util.view.bindings_gateway'
@@ -29,151 +29,171 @@ local block = require 'launch.util.view.component'.block
 
 local M = {}
 
-local function start_job(e)
-  e.output_buffer = vim.api.nvim_create_buf(false, true)
-  e.term_channel = vim.api.nvim_open_term(e.output_buffer, {})
-  print(e.output_buffer, e.term_channel)
+local scripts = {}
+local jobs = {}
 
-  --TODO: needs a better parser, since args can have the space quoted.
-  local cmd = seq.from(vim.split(e.cmd, ' '))
-  local j = job:new {
-    command = cmd:pop(),
-    args = cmd:collect(),
-    on_stdout = vim.schedule_wrap(function (_, line)
-      if line and e.term_channel then
-        vim.api.nvim_chan_send(e.term_channel, line..'\r\n')
-      end
-    end),
-    on_exit = function ()
-      e.job = nil
-      vim.cmd(e.output_buffer .. 'bdelete')
-      e.output_buffer = nil
-    end
-  }
-  j:start()
-
-  e.job = j
+function M.setup(config)
+  for name, props in pairs(config.scripts) do
+    scripts[name] = state.new {
+      name = name,
+      cmd = props.cmd,
+      is_running = false,
+      bufnr = nil,
+    }
+  end
 end
 
-local app_state = state.new({})
+local function handle_for(name)
+  local script = scripts[name]
+
+  return setmetatable({
+    start = function (self)
+      if script.is_running then return end
+
+      local cmd_parts
+      if script.cmd:match('&&') then
+        cmd_parts = seq.from({vim.o.shell, vim.o.shellcmdflag, script.cmd})
+      else
+        cmd_parts = seq.from(vim.split(script.cmd, ' '))
+      end
+
+      script.bufnr = vim.api.nvim_create_buf(false, true)
+      local term_channel = vim.api.nvim_open_term(script.bufnr, {})
+
+      jobs[script.name] = job:new {
+        command = cmd_parts:pop(),
+        args = cmd_parts:collect(),
+        on_stdout = vim.schedule_wrap(function (err, line)
+          if err then
+            print(err)
+          end
+
+          if line then
+            vim.api.nvim_chan_send(term_channel, line..'\r\n')
+          end
+        end),
+        on_exit = vim.schedule_wrap(function ()
+          self.stop()
+        end)
+      }
+
+      jobs[script.name]:start()
+      script.is_running = true
+    end,
+    stop = function ()
+      if not script.is_running then return end
+
+      local j = jobs[script.name]
+      -- :shutdown just blocks for a second and then continues with :_shutdown anyway
+      j:_shutdown(0, 15)
+      j:join()
+      script.is_running = false
+
+      local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
+      if #output <= 5 then output = seq.from(output):filter(function (x) return x ~= '' end):collect() end
+      return { output = output }
+    end,
+    sync = function ()
+      if not script.is_running then return end
+
+      jobs[script.name]:join()
+      script.is_running = false
+
+      -- join too fast for chan_send? or maybe it's the schedule_wrap for on_stdout
+      -- anyway we need to briefly wait here till all the output is available in the buffer.
+      vim.cmd('sleep 10m')
+
+      local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
+      if #output <= 5 then output = seq.from(output):filter(function (x) return x ~= '' end):collect() end
+      return { output = output }
+    end
+  }, {
+    __index = function (_, k)
+      return script[k]
+    end
+  })
+end
+
+function M.stop(name)
+  local handle = handle_for(name)
+  handle:stop()
+end
+
+function M.restart(name)
+  M.stop(name)
+  return M(name)
+end
+
+function M.get(name)
+  return handle_for(name)
+end
+
+function M.all()
+  return seq.keys(scripts)
+    :map(handle_for)
+    :collect()
+end
+
 local view_handle = nil
+function M.open_control_panel()
+  if view_handle then return end
 
-async.run(function ()
-  app_state.config = cfg.get()
-end)
+  view_handle = view.popup({
+    row = 4,
+    col = 80,
+    width = 40,
+    height = 40
+  }, function (props)
+    return seq.from(props)
+      :map(function (s)
+        local function toggle()
+          if s.is_running then
+            M.stop(s.name)
+          else
+            M(s.name)
+          end
+        end
 
-local function close_control_panel()
-  if view_handle.output_win then
-    vim.api.nvim_win_hide(view_handle.output_win)
-  end
+        return block {
+          on = {
+            ['<CR>'] = toggle
+          },
+          string.format('%s [%s]: %s',
+            s.is_running and '⏹' or '▶',
+            s.name,
+            s.cmd)
+        }
+      end)
+      :collect()
+  end, seq.values(scripts):collect())
+
+  vim.cmd(
+    string.format(
+      "autocmd WinClosed <buffer=%s> ++once :lua require 'launch'.close_control_panel()",
+      view_handle.bufnr))
+end
+
+function M.close_control_panel()
+  if not view_handle then return end
+
   view_handle.teardown()
   view_handle = nil
 end
 
-local function open_control_panel()
-
-  local column_count = vim.o.columns
-  local line_count = vim.o.lines - vim.o.cmdheight
-  if vim.o.laststatus ~= 0 then
-    line_count = line_count - 1
-  end
-
-  -- desired width = 120
-  -- desired height = 90% * max
-
-  local width, height = 160, math.floor(line_count * 0.9)
-  local width_padding = math.floor((column_count - width) / 2)
-  local height_padding = math.floor((line_count - height) / 2)
-
-  print(width, height, width_padding, height_padding)
-
-  view_handle = view.popup({
-    row = height_padding,
-    col = width_padding,
-    width = 40,
-    height = height
-  }, function (props)
-    if props.config == nil then
-      return block {
-        "Loading..."
-      }
-    end
-
-    local rows = seq.from(props.config)
-      :map(function (e)
-        return block {
-          margin_block_end = 1,
-          block {
-            on = {
-              ["<CR>"] = function ()
-                if not e.job then
-                  start_job(e)
-
-                  bindings.register(e.output_buffer, 'n', '<C-o>', function ()
-                    vim.api.nvim_set_current_win(view_handle.winnr)
-                  end)
-                else
-                  e.job:shutdown()
-                  e.job = nil
-                end
-              end,
-              ["<C-]>"] = function ()
-                if view_handle.output_win then
-                  vim.api.nvim_win_hide(view_handle.output_win)
-                end
-                -- todo: goto buffer
-                if e.output_buffer then
-                  view_handle.output_win = vim.api.nvim_open_win(e.output_buffer, true, {
-                    relative = "editor",
-                    width = 120,
-                    height = height,
-                    row = height_padding,
-                    col = width_padding + 40,
-                    style = 'minimal',
-                    border = 'double'
-                  })
-                  vim.api.nvim_buf_call(e.output_buffer, function () vim.cmd('normal G') end)
-                end
-              end,
-              [" "] = function ()
-                if view_handle.output_win then
-                  vim.api.nvim_win_hide(view_handle.output_win)
-                end
-
-                if e.output_buffer then
-                  view_handle.output_win = vim.api.nvim_open_win(e.output_buffer, false, {
-                    relative = "editor",
-                    width = 120,
-                    height = height,
-                    row = height_padding,
-                    col = width_padding + 40,
-                    style = 'minimal',
-                    border = 'double'
-                  })
-                  print(view_handle.output_win)
-                  vim.api.nvim_buf_call(e.output_buffer, function () vim.cmd('normal G') end)
-                end
-              end
-            },
-            (e.job and 'R' or 'S') .. ' ' .. e.name .. ': ' .. e.cmd
-          }
-        }
-      end)
-      :collect()
-
-    return block {
-      margin_block_start = 2,
-      rows
-    }
-  end, app_state)
-end
-
 function M.toggle_control_panel()
-  if not view_handle then
-    open_control_panel()
+  if view_handle then
+    M.close_control_panel()
   else
-    close_control_panel()
+    M.open_control_panel()
   end
 end
+
+setmetatable(M, {
+  __call = function (_, name)
+    local handle = handle_for(name)
+    handle:start()
+    return handle
+  end
+})
 
 return M
