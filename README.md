@@ -52,11 +52,10 @@ toggles the interactive buffer. Currently there's only one key bound:
 - `<CR>`: Toggle the process under the cursor.
 
 
+All the functionality can also be accessed programmatically via the top-level `launch` module:
 ```lua
 local launch = require 'launch'
 ```
-
-All the functionality can also be accessed programmatically via the top-level `launch` module:
 
 - Start a proces:
   ```lua
@@ -92,11 +91,18 @@ All the functionality can also be accessed programmatically via the top-level `l
   launch.all()
   ```
 
-Notably absent currently is to actually get to the log output of any script. This is basically next on the TODO-list, until then you have to get the buffer from the script handle and open it:
+- Open output buffer for a script:
+  ```lua
+  launch.get('<script-name>').open_output_buffer()
+  ```
 
-```lua
-vim.cmd('b'..launch.get('<script-name>').bufnr)
-```
+  This uses `sbuffer` internally and appends an optional argument before,
+  allowing the split position to be modified:
 
-These are channel-controlled terminal buffers, so they follow automatically as long as the cursor is at the bottom, but can otherwise be navigated freely.
-Note that manually deleting the buffer is currently undefined behavior.
+  ```lua
+  launch.get('<script-name>').open_output_buffer('vert')
+  ```
+
+  These are channel-controlled terminal buffers, so they follow automatically
+  as long as the cursor is at the bottom, but can otherwise be navigated freely.
+  Note that manually deleting the buffer is currently undefined behavior.

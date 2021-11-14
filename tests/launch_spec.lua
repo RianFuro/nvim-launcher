@@ -120,6 +120,19 @@ describe('launch', function ()
     assert.equal('other', handles[2].name)
   end)
 
+  it('opens the output buffer in a split', function ()
+    launch.setup({
+      scripts = {
+        test = {cmd = 'echo Hello, World!'}
+      }
+    })
+
+    local handle = launch.get('test')
+    handle.open_output_buffer()
+
+    assert.equal(handle.bufnr, vim.api.nvim_get_current_buf())
+  end)
+
   describe('buffer', function ()
     -- tests are not completely isolated so we clean up just in case
     after_each(function ()
@@ -237,3 +250,7 @@ end)
 -- [x] close interactive buffer
 -- [x] toggle interactive buffer
 -- [x] recognize when buffer is closed normally and clean up
+-- [x] open logs from api
+-- [x] dont break when script has never been started
+-- [ ] open logs from interactive buffer
+-- [ ] vim command for opening logs (with autocomplete)

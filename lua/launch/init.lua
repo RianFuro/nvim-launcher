@@ -1,23 +1,3 @@
--- TODO:
--- [x] configuration
--- [ ] process management
--- [/] process controller ui
-
-
--- configuration:
--- [x] configuration parser
--- [ ] .idea importer?
--- [ ] npm importer?
--- [ ] in-memory representation
-
--- configuration syntax:
--- .ini syntax?
-
--- example:
--- [entry-name]
--- cmd = "npm run xxx"
--- working_directory = ""
-
 local async = require 'plenary.async'
 local seq = require 'launch.util.seq'
 --local cfg = require 'launch.configuration'
@@ -33,14 +13,7 @@ local scripts = {}
 local jobs = {}
 
 function M.setup(config)
-  for name, props in pairs(config.scripts) do
-    scripts[name] = state.new {
-      name = name,
-      cmd = props.cmd,
-      is_running = false,
-      bufnr = nil,
-    }
-  end
+  M.extend(config.scripts or {})
 end
 
 function M.extend(new_scripts)
@@ -49,7 +22,7 @@ function M.extend(new_scripts)
       name = name,
       cmd = props.cmd,
       is_running = false,
-      bufnr = nil,
+      bufnr = vim.api.nvim_create_buf(false, true)
     }
   end
 end
@@ -68,7 +41,6 @@ local function handle_for(name)
         cmd_parts = seq.from(vim.split(script.cmd, ' '))
       end
 
-      script.bufnr = vim.api.nvim_create_buf(false, true)
       local term_channel = vim.api.nvim_open_term(script.bufnr, {})
 
       jobs[script.name] = job:new {
@@ -101,7 +73,9 @@ local function handle_for(name)
       script.is_running = false
 
       local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
-      if #output <= 5 then output = seq.from(output):filter(function (x) return x ~= '' end):collect() end
+      while output[#output] == '' and #output > 0 do
+        output[#output] = nil
+      end
       return { output = output }
     end,
     sync = function ()
@@ -115,8 +89,13 @@ local function handle_for(name)
       vim.cmd('sleep 10m')
 
       local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
-      if #output <= 5 then output = seq.from(output):filter(function (x) return x ~= '' end):collect() end
+      while output[#output] == '' and #output > 0 do
+        output[#output] = nil
+      end
       return { output = output }
+    end,
+    open_output_buffer = function (mods)
+      vim.cmd((mods or '') .. ' sbuffer '..script.bufnr)
     end
   }, {
     __index = function (_, k)
@@ -149,6 +128,10 @@ function M.all()
   return seq.keys(scripts)
     :map(handle_for)
     :collect()
+end
+
+function M._names()
+  return seq.keys(scripts):collect()
 end
 
 local view_handle = nil
