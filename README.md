@@ -37,7 +37,7 @@ require 'launcher'.extend({
 })
 ```
 
-If you allow sourcing `.vimrc` files from the current directory you can put your script setup there to be sourced automatically.
+If you allow sourcing `.nvimrc` files from the current directory you can put your script setup there to be sourced automatically.
 
 Loading script configuration from a project local file, package.json, etc. is in the works.
 
