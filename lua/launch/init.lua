@@ -43,6 +43,17 @@ function M.setup(config)
   end
 end
 
+function M.extend(new_scripts)
+  for name, props in pairs(new_scripts) do
+    scripts[name] = state.new {
+      name = name,
+      cmd = props.cmd,
+      is_running = false,
+      bufnr = nil,
+    }
+  end
+end
+
 local function handle_for(name)
   local script = scripts[name]
 
@@ -112,6 +123,12 @@ local function handle_for(name)
       return script[k]
     end
   })
+end
+
+function M.start(name)
+  local handle = handle_for(name)
+  handle:start()
+  return handle
 end
 
 function M.stop(name)
@@ -190,9 +207,7 @@ end
 
 setmetatable(M, {
   __call = function (_, name)
-    local handle = handle_for(name)
-    handle:start()
-    return handle
+    return M.start(name)
   end
 })
 

@@ -26,7 +26,6 @@ local function view(bufno, root_component, initial_state)
       if not bindings[b.chord] then
         bindings[b.chord] = {}
         bindings_gateway.register(bufno, 'n', b.chord, function ()
-          print('check bindings for', b.chord)
           local pos = vim.fn.getpos('.')
           local line_nr = pos[2] - 1
           for _, x in ipairs(bindings[b.chord]) do
