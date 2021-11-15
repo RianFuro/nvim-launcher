@@ -211,6 +211,15 @@ describe('result', function ()
     end)
   end)
 
+  it('can deal with multiple values in success', function ()
+    local r = result.success(1,2,3)
+    assert.are.same({1,2,3}, {r:unwrap()})
+
+    r:map(function (...)
+      assert.are.same({1,2,3}, {...})
+    end)
+  end)
+
   describe('.seq', function ()
     it('automagically unwraps yielded results if they contain a value', function ()
       result.seq(function ()

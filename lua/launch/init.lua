@@ -1,4 +1,5 @@
 local async = require 'plenary.async'
+local screen = require 'launch.util.screen'
 local seq = require 'launch.util.seq'
 --local cfg = require 'launch.configuration'
 local view = require 'launch.util.view'
@@ -138,11 +139,15 @@ local view_handle = nil
 function M.open_control_panel()
   if view_handle then return end
 
-  view_handle = view.popup({
-    row = 4,
-    col = 80,
+  local col, row, width, height = screen.rect_with {
     width = 40,
-    height = 40
+    height = '90%',
+    valign = 'center',
+    halign = 'center'
+  }:unwrap()
+
+  view_handle = view.popup({
+    col = col, row = row, width = width, height = height
   }, function (props)
     return seq.from(props)
       :map(function (s)

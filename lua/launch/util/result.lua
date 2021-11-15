@@ -11,36 +11,32 @@ function Result:ok()
   return self[1] == nil
 end
 
-function Result:map(cb)
-  if self:ok() then
-    return M(nil, cb(self[2]))
-  else
-    return self
-  end
-end
-
-function Result:map_error(cb)
-	if self:ok() then
-		return self
-	else
-		return M(cb(self[1]), self[2])
-	end
-end
-
 function Result:match(cb, cbe)
 	if self:ok() then
-		return cb(self[2])
+		return cb(unpack(self, 2, self.n + 1))
 	else
 		return cbe(self[1])
 	end
 end
 
+function Result:map(cb)
+  return self:match(
+    function (...) return M(nil, cb(...)) end,
+    function () return self end)
+end
+
+function Result:map_error(cb)
+  return self:match(
+    function () return self end,
+    function (err) return M(cb(err), nil) end)
+end
+
 function Result:unwrap()
-  return self:match(function (v) return v end, function (err) error(err, 2) end)
+  return self:match(function (...) return ... end, function (err) error(err, 2) end)
 end
 
 function Result:unwrap_or(default)
-  return self:match(function (v) return v end, function () return default end)
+  return self:match(function (...) return ... end, function () return default end)
 end
 
 function Result:flatten()
@@ -71,8 +67,8 @@ function M.error(err)
 	return M(err or true)
 end
 
-function M.success(value)
-	return M(nil, value)
+function M.success(...)
+	return M(nil, ...)
 end
 
 -- Sequence a batch of operations that would return results by unwrapping the result behind the scenes.
@@ -117,8 +113,8 @@ function M.seq(cb)
 end
 
 setmetatable(M, {
-  __call = function (_, err, result)
-    return setmetatable({err, result}, { __index = Result })
+  __call = function (_, err, ...)
+    return setmetatable({n = select('#', ...), err, ...}, { __index = Result })
   end
 })
 
