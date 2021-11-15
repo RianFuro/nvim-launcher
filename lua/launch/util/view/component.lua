@@ -9,6 +9,8 @@ local function component(cb)
     props.children = children
 
     local bindings = props.on or {}
+    local on_hover = props.on_hover
+    props.on_hover = nil
     props.on = nil
 
     local result = cb(props) or {}
@@ -20,6 +22,7 @@ local function component(cb)
       })
     end
     result.bindings = __bindings
+    result.on_hover = on_hover
     result.component = true
     return result
   end
@@ -43,6 +46,7 @@ local function flatten_component(component_result, context)
       if (type(cur) == 'string') then return {
         rows = acc.rows + seq.from({cur}),
         bindings = acc.bindings,
+        hover_bindings = acc.hover_bindings,
         current_line = acc.current_line + 1
       } end
 
@@ -52,6 +56,7 @@ local function flatten_component(component_result, context)
         return {
           rows = acc.rows + seq.from(rows),
           bindings = acc.bindings + nested.bindings,
+          hover_bindings = acc.hover_bindings + nested.hover_bindings,
           current_line = nested.current_line
         }
       end
@@ -59,9 +64,20 @@ local function flatten_component(component_result, context)
       if (type(cur) == 'table' and cur.component) then
         local nested = flatten_component(cur, { current_line = acc.current_line })
         local rows = nested.rows:collect()
+        local on_hover
+        if cur.on_hover then
+          on_hover = seq.from({{
+            handle = cur.on_hover,
+            range = {acc.current_line, acc.current_line + #rows}
+          }})
+        else
+          on_hover = seq.from({})
+        end
+
         return {
           rows = acc.rows + seq.from(rows),
-          bindings = acc.bindings
+          bindings =
+            acc.bindings
             + nested.bindings
             + seq.from(cur.bindings)
                 :map(function (b)
@@ -71,12 +87,17 @@ local function flatten_component(component_result, context)
                     range = {acc.current_line, acc.current_line + #rows}
                   }
                 end),
+          hover_bindings =
+            acc.hover_bindings
+            + nested.hover_bindings
+            + on_hover,
           current_line = nested.current_line
         }
       end
     end, {
       rows = seq.from({}),
       bindings = seq.from({}),
+      hover_bindings = seq.from({}),
       current_line = context.current_line,
     })
 end
@@ -85,6 +106,7 @@ function M.render(component, props)
   local result = flatten_component({component(props)}, { current_line = 0 })
   local rows = result.rows:collect()
   rows.bindings = result.bindings:collect()
+  rows.hover_bindings = result.hover_bindings:collect()
   return rows
 end
 

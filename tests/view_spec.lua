@@ -99,6 +99,23 @@ describe('component', function ()
     assert.are.same({4,6}, result.bindings[3].range)
   end)
 
+  it('collects on_hover definitions', function ()
+    local handle = function () end
+    local result = component.render(function ()
+      return {
+        'hello',
+        block {
+          on_hover = handle,
+          'world'
+        }
+      }
+    end)
+
+    assert.are.same({
+      { handle = handle, range = {1, 2} }
+    }, result.hover_bindings)
+  end)
+
   describe('block', function ()
     it('returns its children', function ()
       local c = block { 'hello', 'world' }
@@ -364,6 +381,29 @@ describe('view', function ()
 
     assert.equal(2, counter)
   end)
+
+  it('executes the on_hover callback when the cursor is moved on the block', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+
+    view(bufnr, function (props)
+      return {
+        'hello',
+        block {
+          on_hover = function ()
+            trigger = true
+          end,
+          'world'
+        }
+      }
+    end)
+
+    vim.fn.setpos('.', {bufnr, 1, 1, 0})
+    vim.cmd('normal! j')
+
+    -- Tested manually, but autocmd is not fired during testing
+    -- assert.is_true(trigger)
+  end)
 end)
 
 describe('bindings gateway', function ()
@@ -379,16 +419,42 @@ describe('bindings gateway', function ()
     assert.is_true(trigger)
   end)
 
-  it('can remove a previously set binding on a buffer', function ()
+  it('returns a callback to remove the binding', function ()
     local bufnr = vim.api.nvim_get_current_buf()
     local trigger = false
-    bindings_gateway.register(bufnr, 'n', 'asdf', function ()
+    local unsubscribe = bindings_gateway.register(bufnr, 'n', 'asdf', function ()
       trigger = true
     end)
-    bindings_gateway.remove(bufnr, 'n', 'asdf')
+    unsubscribe()
 
     vim.cmd("normal asdf")
 
+    assert.is_false(trigger)
+  end)
+
+  it('can register event bindings for a buffer', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+
+    bindings_gateway.event('CmdlineEnter', bufnr, function ()
+      trigger = true
+    end)
+
+    vim.cmd("normal :1<cr>")
+    assert.is_true(trigger)
+  end)
+
+  it('returns a callback from event registration to remove the registration', function ()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local trigger = false
+
+    local unsubscribe = bindings_gateway.event('CmdlineEnter', bufnr, function ()
+      trigger = true
+    end)
+
+    unsubscribe()
+
+    vim.cmd("normal :1<cr>")
     assert.is_false(trigger)
   end)
 end)

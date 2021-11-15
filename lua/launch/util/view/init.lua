@@ -13,10 +13,11 @@ local M = {}
 local function view(bufno, root_component, initial_state)
   local s = state.new(initial_state or {})
   local bindings = {}
+  local hover_bindings = {}
 
   local function clean_callbacks()
-    for chord, _ in pairs(bindings) do
-      bindings_gateway.remove(bufno, 'n', chord)
+    for _, b in pairs(bindings) do
+      b.remove()
     end
     bindings = {}
   end
@@ -25,7 +26,7 @@ local function view(bufno, root_component, initial_state)
     for b in seq.from(bs):iter() do
       if not bindings[b.chord] then
         bindings[b.chord] = {}
-        bindings_gateway.register(bufno, 'n', b.chord, function ()
+        bindings[b.chord].remove = bindings_gateway.register(bufno, 'n', b.chord, function ()
           local pos = vim.fn.getpos('.')
           local line_nr = pos[2] - 1
           for _, x in ipairs(bindings[b.chord]) do
@@ -45,8 +46,9 @@ local function view(bufno, root_component, initial_state)
     local data = component.render(root_component, s)
     clean_callbacks()
     register_bindings(data.bindings)
-    --print(vim.inspect(bindings))
+    hover_bindings = data.hover_bindings
     data.bindings = nil
+    data.hover_bindings = nil
     vim.api.nvim_buf_set_lines(bufno, 0, -1, false, data)
   end
 
@@ -59,6 +61,22 @@ local function view(bufno, root_component, initial_state)
   end)
 
   update()
+
+  -- TODO:
+  -- - [x] test drive from spike
+  -- - [x] cleaning up event bindings? (better structure for sure [maybe return unsub like with observables?])
+  -- - [x] use that for keybindings too!
+  -- - [x] parse `on_hover` definitions from component tree like keybindings
+  -- - [ ] track enter/leave to prevent firing multiple times
+  bindings_gateway.event('CursorMoved', bufno, function ()
+    local _, line_nr = unpack(vim.fn.getpos('.'))
+    for _, b in ipairs(hover_bindings) do
+      local from, to = unpack(b.range)
+      if line_nr - 1 >= from and line_nr - 1 < to then
+        b.handle()
+      end
+    end
+  end)
 
   return {
     state = s,

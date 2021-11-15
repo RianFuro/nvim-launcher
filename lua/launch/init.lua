@@ -1,4 +1,6 @@
-local async = require 'plenary.async'
+-- TODO:
+-- [ ] find out why i can't test with CursorMoved-events (maybe because it's headless?)
+
 local screen = require 'launch.util.screen'
 local seq = require 'launch.util.seq'
 --local cfg = require 'launch.configuration'
@@ -7,6 +9,7 @@ local state = require 'launch.util.view.state'
 local bindings = require 'launch.util.view.bindings_gateway'
 local job = require 'plenary.job'
 local block = require 'launch.util.view.component'.block
+local popup = require 'plenary.popup'
 
 local M = {}
 
@@ -139,15 +142,19 @@ local view_handle = nil
 function M.open_control_panel()
   if view_handle then return end
 
-  local col, row, width, height = screen.rect_with {
-    width = 40,
+  -- TODO: refactor
+  local output_buffer_win = nil
+  local u1, u2 = nil, nil
+
+  local col, row, _, height = screen.rect_with {
+    width = 120,
     height = '90%',
     valign = 'center',
     halign = 'center'
   }:unwrap()
 
   view_handle = view.popup({
-    col = col, row = row, width = width, height = height
+    col = col, row = row, width = 40, height = height
   }, function (props)
     return seq.from(props)
       :map(function (s)
@@ -159,10 +166,48 @@ function M.open_control_panel()
           end
         end
 
+        local function show_output_buffer()
+          if output_buffer_win then
+            vim.api.nvim_win_hide(output_buffer_win)
+            u1()
+            u2()
+          end
+
+          output_buffer_win = popup.create(s.bufnr, {
+            border = true,
+            width = 80,
+            height = height,
+            minwidth = 80,
+            minheight = height,
+            maxwidth = 80,
+            maxheight = height,
+            row = row,
+            col = col + 42,
+            enter = false
+          })
+
+          local function goto_control_panel()
+            vim.api.nvim_set_current_win(view_handle.winnr)
+          end
+          u1 = bindings.register(s.bufnr, 'n', '<C-o>', goto_control_panel)
+          u2 = bindings.register(s.bufnr, 'n', '<C-w>h', goto_control_panel)
+
+        end
+
+        local function goto_output_buffer()
+          if not output_buffer_win then return end
+          vim.api.nvim_set_current_win(output_buffer_win)
+        end
+
         return block {
           on = {
-            ['<CR>'] = toggle
+            ['<CR>'] = toggle,
+            ['<C-]>'] = goto_output_buffer,
+            ['<C-w>l'] = goto_output_buffer
           },
+          -- careful with this, on_hover currently triggers for every change movement,
+          -- not only when entering the block. This needs to be implemented if this get bigger than 1 line
+          on_hover = show_output_buffer,
           string.format('%s [%s]: %s',
             s.is_running and '⏹' or '▶',
             s.name,

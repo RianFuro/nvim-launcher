@@ -2,7 +2,9 @@
 
 A process manager for your dev-server and any other script you might need for your project.
 
-NOTE: VERY early stage of development. Core functionality works, but is a bit cumbersome to use. Feel free to open issues to suggest improvements. Also expect things to change and break (aside from the documented top-level api)
+**NOTE**: early stage of development. Core functionality works, but I'm still figuring out a good UX, so the UI and keybindings might change abruptly. If you still decide to use this plugin as-is, be sure to check back to the README for potential changes when updating. 
+
+Feel free to open issues to suggest improvements. Also expect things to change and break (aside from the documented top-level api)
 
 ## Installation
 
@@ -48,8 +50,10 @@ For now there's a lua-api and an interactive buffer. Vim-command-api is also in 
 ```lua
 require 'launch'.toggle_control_panel()
 ```
-toggles the interactive buffer. Currently there's only one key bound:
+toggles the interactive buffer. Moving the cursor over an entry will show the current output of that script on the right. 
+Current keybindings:
 - `<CR>`: Toggle the process under the cursor.
+- `<C-]>`/`<C-w>l`: Jump to the currently shown output buffer. Use `<C-o>`/`<C-w>h` to jump back.
 
 
 All the functionality can also be accessed programmatically via the top-level `launch` module:
