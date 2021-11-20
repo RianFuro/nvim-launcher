@@ -428,6 +428,19 @@ describe('view', function ()
     -- Tested manually, but autocmd is not fired during testing
     -- assert.is_true(trigger)
   end)
+
+  describe('.popup', function ()
+    it('sets given buffer local options', function ()
+      view.popup({
+        width = 20, height = 20, row = 0, col = 0,
+        buffer_config = {
+          ft = "TestBuffer"
+        }
+      }, function () return 'Hello, World' end, {})
+
+      assert.equal('TestBuffer', vim.b.ft)
+    end)
+  end)
 end)
 
 describe('bindings gateway', function ()

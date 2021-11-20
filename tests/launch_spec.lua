@@ -139,6 +139,11 @@ describe('launch', function ()
       launch.close_control_panel()
     end)
 
+    it('sets the filetype correctly', function ()
+      launch.open_control_panel()
+      assert.equal('LauncherControlPanel', vim.o.ft)
+    end)
+
     it('should show all configured scripts', function ()
       launch.setup({
         scripts = {
@@ -239,7 +244,6 @@ describe('launch', function ()
       })
 
       launch.open_control_panel()
-      launch.start('test')
       local original_buf = vim.api.nvim_get_current_buf()
       vim.fn.setpos('.', {0, 1, 1, 0})
       vim.cmd('execute "normal \\<C-w>l"')
@@ -273,3 +277,4 @@ end)
 -- [x] open logs from interactive buffer
 -- [x] vim command for opening logs (with autocomplete)
 -- [ ] colors!
+-- [ ] figure out why some tests just don't work (cursor moved events, switch to output buffer)

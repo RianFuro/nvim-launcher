@@ -9,7 +9,6 @@ local view = require 'launch.util.view'
 local state = require 'launch.util.view.state'
 local bindings = require 'launch.util.view.bindings_gateway'
 local block = require 'launch.util.view.component'.block
-local popup = require 'plenary.popup'
 local script_handle = require 'launch.script_handle'
 
 local M = {}
@@ -101,7 +100,10 @@ function M.open_control_panel()
     output_buffer = nil
   }
   view_handle.control_panel = view.popup({
-    col = col, row = row, width = 80, height = height
+    col = col, row = row, width = 80, height = height,
+    buffer_config = {
+      ft = "LauncherControlPanel"
+    }
   }, function (props)
     local script_entries = seq.from(props.scripts)
       :map(function (s)

@@ -4,7 +4,6 @@
 local component = require 'launch.util.view.component'
 local bindings_gateway = require 'launch.util.view.bindings_gateway'
 local state = require 'launch.util.view.state'
-local popup = require 'plenary.popup'
 local seq = require 'launch.util.seq'
 
 local M = {}
@@ -98,6 +97,13 @@ function M.popup(popup_options, ...)
     col = popup_options.col,
     border = "rounded"
   })
+
+  vim.api.nvim_buf_call(bufnr, function ()
+    local config = popup_options.buffer_config or {}
+    for k, v in pairs(config) do
+      vim.o[k] = v
+    end
+  end)
 
   local context = view(bufnr, ...)
   context.bufnr = bufnr
