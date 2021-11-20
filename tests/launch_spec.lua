@@ -276,5 +276,6 @@ end)
 -- [x] dont break when script has never been started
 -- [x] open logs from interactive buffer
 -- [x] vim command for opening logs (with autocomplete)
--- [ ] colors!
+-- [x] colors!
+-- [ ] make sure scripts are executed from the project root as working directory, even when vims cwd is in a subdirectory
 -- [ ] figure out why some tests just don't work (cursor moved events, switch to output buffer)

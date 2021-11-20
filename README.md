@@ -20,13 +20,17 @@ end)
 
 ## Setup
 
-There's no setup to be called for now, but a `.setup` function exists as a kinda placeholder, so you can put that into your config to be future-proof:
+Call `setup` to initialize the package. This will search for scripts in various sources of your project:
 
 ```lua
 require 'launcher'.setup()
 ```
 
-Scripts are specific to a certain project so they are not defined in the global setup call. There is currently no *good* way to configure them automatically, but you can call `.extend` to set your managed scripts:
+Scripts are currently searched for in the following locations:
+- package.json
+
+
+There is currently no *good* way to manually add scripts on a per-project basis, but you can call `.extend` to add to your managed scripts:
 
 ```lua
 require 'launcher'.extend({
@@ -43,7 +47,7 @@ require 'launcher'.extend({
 
 If you allow sourcing `.nvimrc` files from the current directory you can put your script setup there to be sourced automatically.
 
-Loading script configuration from a project local file, package.json, etc. is in the works.
+Loading script configuration from a project local file and other sources is in the works.
 
 ## Usage
 
@@ -54,6 +58,7 @@ require 'launch'.toggle_control_panel()
 ```
 toggles the interactive buffer. Moving the cursor over an entry will show the current output of that script on the right. 
 Current keybindings:
+- `q`: Close the control panel.
 - `<CR>`: Toggle the process under the cursor.
 - `<C-]>`/`<C-w>l`: Jump to the currently shown output buffer. Use `<C-o>`/`<C-w>h` to jump back.
 

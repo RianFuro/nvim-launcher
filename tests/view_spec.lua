@@ -438,7 +438,7 @@ describe('view', function ()
         }
       }, function () return 'Hello, World' end, {})
 
-      assert.equal('TestBuffer', vim.b.ft)
+      assert.equal('TestBuffer', vim.o.ft)
     end)
   end)
 end)
