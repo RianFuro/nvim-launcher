@@ -236,6 +236,22 @@ describe('state', function ()
     assert.equal(s.ls[1], 1)
   end)
 
+  describe('.set', function ()
+    it('directly updates the internal state of the observable', function ()
+      local trigger = false
+      local s = state.new {
+        a = 1
+      }
+
+      state.subscribe(s, function () trigger = true end)
+      state.set(s, { b = 2 })
+
+      assert.is_true(trigger)
+      assert.equal(nil, s.a)
+      assert.equal(2, s.b)
+    end)
+  end)
+
   describe('.plain', function ()
 
     it('gets back the plain value of an observable', function ()
@@ -275,6 +291,14 @@ describe('state', function ()
     unsubscribe()
     s.a = 2
     assert.is_false(trigger)
+  end)
+
+  it('can be iterated over with seq', function ()
+    local s = state.new {
+      a = 1
+    }
+
+    assert.are.same({'a', 1}, seq.pairs(s):pop())
   end)
 end)
 

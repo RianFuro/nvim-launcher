@@ -24,6 +24,13 @@ local Observable = {
     self[K_STATE][k] = v
 
     publish_change(self)
+  end,
+  __pairs = function (self)
+    local inner = self[K_STATE]
+    local it = pairs(inner)
+    return function (_, k)
+      return it(inner, k)
+    end
   end
 }
 
@@ -67,6 +74,11 @@ function M.subscribe(state, cb)
       end
     end
   end
+end
+
+function M.set(s, new_state)
+  s[K_STATE] = new_state
+  publish_change(s)
 end
 
 function M.append(ls, item)

@@ -5,7 +5,7 @@ describe('launch', function ()
   it('can run a configured script', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -19,7 +19,7 @@ describe('launch', function ()
   it('fills a buffer with script output', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -33,7 +33,7 @@ describe('launch', function ()
   it('can excute piped statements', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo hello && echo world'}
+        {name = 'test', cmd = 'echo hello && echo world'}
       }
     })
 
@@ -44,14 +44,14 @@ describe('launch', function ()
   it('can stop a script before it finishes', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'sleep 10 && echo test'}
+        {name = 'test', cmd = 'sleep 10 && echo test'}
       }
     })
 
     local handle = launch('test')
     assert.is_true(handle.is_running)
 
-    local result = handle.stop()
+    local result = handle:stop()
     assert.is_false(handle.is_running)
     assert.are.same({}, result.output)
   end)
@@ -59,7 +59,7 @@ describe('launch', function ()
   it('can return a handle by script name', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -70,7 +70,7 @@ describe('launch', function ()
   it('can start a script from a handle', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -83,7 +83,7 @@ describe('launch', function ()
   it('doesnt start a script again if its already running', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'sleep 10 && echo test'}
+        {name = 'test', cmd = 'sleep 10 && echo test'}
       }
     })
 
@@ -99,7 +99,7 @@ describe('launch', function ()
   it('does nothing when stopping a script that is not running', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -109,8 +109,8 @@ describe('launch', function ()
   it('returns a list of all configured scripts', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'},
-        other = {cmd = 'echo Hello, Abyss!'}
+        {name = 'test', cmd = 'echo Hello, World!'},
+        {name = 'other', cmd = 'echo Hello, Abyss!'}
       }
     })
 
@@ -123,7 +123,7 @@ describe('launch', function ()
   it('opens the output buffer in a split', function ()
     launch.setup({
       scripts = {
-        test = {cmd = 'echo Hello, World!'}
+        {name = 'test', cmd = 'echo Hello, World!'}
       }
     })
 
@@ -142,8 +142,8 @@ describe('launch', function ()
     it('should show all configured scripts', function ()
       launch.setup({
         scripts = {
-          test = {cmd = 'echo Hello, World!'},
-          other = {cmd = 'echo Hello, Abyss!'}
+          {name = 'test', cmd = 'echo Hello, World!'},
+          {name = 'other', cmd = 'echo Hello, Abyss!'}
         }
       })
 
@@ -165,8 +165,8 @@ describe('launch', function ()
     it('updates when the running state of a script is updated', function ()
       launch.setup({
         scripts = {
-          test = {cmd = 'sleep 5'},
-          other = {cmd = 'echo Hello, Abyss!'}
+          {name = 'test', cmd = 'sleep 5'},
+          {name = 'other', cmd = 'echo Hello, Abyss!'}
         }
       })
 
@@ -190,7 +190,7 @@ describe('launch', function ()
     it('has keybindings to start/stop a script', function ()
       launch.setup({
         scripts = {
-          test = {cmd = 'sleep 5'},
+          {name = 'test', cmd = 'sleep 5'},
         }
       })
 
@@ -229,6 +229,24 @@ describe('launch', function ()
       launch.open_control_panel()
       assert.are_not.equal(original_buf, vim.api.nvim_get_current_buf())
     end)
+
+    -- does not work for some reason
+    it.skip('opens up an output buffer for the hovered script', function ()
+      launch.setup({
+        scripts = {
+          {name = 'test', cmd = 'echo test'},
+        }
+      })
+
+      launch.open_control_panel()
+      launch.start('test')
+      local original_buf = vim.api.nvim_get_current_buf()
+      vim.fn.setpos('.', {0, 1, 1, 0})
+      vim.cmd('execute "normal \\<C-w>l"')
+      assert.are_not.equal(original_buf, vim.api.nvim_get_current_buf())
+      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+      assert.are.same({ 'test' }, lines)
+    end)
   end)
 end)
 
@@ -238,7 +256,7 @@ end)
 -- [x] can stop the script before it finishes
 -- [x] get running job from storage by name
 -- [ ] duplicate names?
--- [ ] interactive buffer to control scripts
+-- [x] interactive buffer to control scripts
 -- [x] open interactive buffer
 -- [x] buffer updates when running state changes
 -- [x] update running state with keybindings
@@ -252,5 +270,6 @@ end)
 -- [x] recognize when buffer is closed normally and clean up
 -- [x] open logs from api
 -- [x] dont break when script has never been started
--- [ ] open logs from interactive buffer
--- [ ] vim command for opening logs (with autocomplete)
+-- [x] open logs from interactive buffer
+-- [x] vim command for opening logs (with autocomplete)
+-- [ ] colors!

@@ -71,6 +71,31 @@ describe('seq', function ()
     end)
   end)
 
+  describe('.pairs', function ()
+    it('emits values as key-value-pairs', function ()
+      local s = seq.pairs({a = 1})
+
+      assert.are.same({'a', 1}, s:pop())
+      assert.are.same(nil, s:pop())
+    end)
+
+    it('works with objects behind metatables if the metatable defines a __pairs property', function ()
+      local wrapped = {a = 1}
+      local wrapper = setmetatable({}, {
+        __index = wrapped,
+        __pairs = function ()
+          local it = pairs(wrapped)
+          return function (_, k)
+            return it(wrapped, k)
+          end
+        end
+      })
+      local s = seq.pairs(wrapper)
+      assert.are.same({'a', 1}, s:pop())
+      assert.are.same(nil, s:pop())
+    end)
+  end)
+
   describe(':reduce', function ()
     it('executes the callback for each item', function ()
       local ls = {1,2,3}
@@ -106,6 +131,13 @@ describe('seq', function ()
       local s = seq.from({1,2,3})
       s:reduce(function () end)
       assert.equal(s:pop(), nil)
+    end)
+  end)
+
+  describe(':into_dict', function ()
+    it('reduces key-value-pairs into a dictionary', function ()
+      local s = seq.from({{'a', 1}, {'b', 2}})
+      assert.are.same({a = 1, b = 2}, s:into_dict())
     end)
   end)
 

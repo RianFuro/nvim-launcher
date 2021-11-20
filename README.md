@@ -30,10 +30,12 @@ Scripts are specific to a certain project so they are not defined in the global 
 
 ```lua
 require 'launcher'.extend({
-  test = {
+  {
+    name = 'test',
     cmd = 'echo Hello, World!',
   },
-  start = {
+  {
+    name = 'start',
     cmd = 'npm start'
   }
 })

@@ -2,9 +2,7 @@ local M = {}
 
 -- TODO
 function M.get()
-  return require 'launch.configuration.ide' ()
+  return require 'launch.configuration.npm_package'.get_scripts()
 end
-
-print(M.get)
 
 return M

@@ -89,14 +89,14 @@ end
 
 function M.popup(popup_options, ...)
   local bufnr = vim.api.nvim_create_buf(false, true)
-  local winnr = popup.create(bufnr, {
-    border = true,
+  local winnr = vim.api.nvim_open_win(bufnr, true, {
+    relative = "editor",
+    style = "minimal",
     width = popup_options.width,
     height = popup_options.height,
-    minwidth = popup_options.width,
-    minheight = popup_options.height,
     row = popup_options.row,
-    col = popup_options.col
+    col = popup_options.col,
+    border = "rounded"
   })
 
   local context = view(bufnr, ...)

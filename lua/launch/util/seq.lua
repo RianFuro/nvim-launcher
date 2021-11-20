@@ -26,6 +26,13 @@ function Seq:pop()
   return self.__it()
 end
 
+function Seq:into_dict()
+  return self:reduce(function (t, pair)
+    t[pair[1]] = pair[2]
+    return t
+  end, {})
+end
+
 function Seq:take(n)
   local it = self.__it
   local idx = 1
@@ -186,8 +193,18 @@ function M.from(ls)
   return M.from_iter(value_it)
 end
 
+local function resolve_pairs_func(t)
+  local meta = getmetatable(t)
+  if type(meta) == 'table' and meta.__pairs then
+    return meta.__pairs
+  end
+
+  return pairs
+end
+
 function M.keys(m)
-  local it, _, k = pairs(m)
+  local iter_func = resolve_pairs_func(m)
+  local it, _, k = iter_func(m)
   local value_it = function ()
     k = it(m, k)
     return k
@@ -197,12 +214,29 @@ function M.keys(m)
 end
 
 function M.values(m)
-  local it, _, k = pairs(m)
+  local iter_func = resolve_pairs_func(m)
+  local it, _, k = iter_func(m)
   local value
 
   local value_it = function ()
     k, value = it(m, k)
     return value
+  end
+
+  return M.from_iter(value_it)
+end
+
+function M.pairs(m)
+  local iter_func = resolve_pairs_func(m)
+  local it, _, k = iter_func(m)
+  local value
+
+  local value_it = function ()
+    k, value = it(m, k)
+    if k == nil then return nil end
+    -- we return a table here to stay compatible with the rest of the api.
+    -- expecting variable returns from the iterator functions makes life very complicated.
+    return {k, value}
   end
 
   return M.from_iter(value_it)

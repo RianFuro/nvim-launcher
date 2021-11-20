@@ -1,111 +1,56 @@
 -- TODO:
 -- [ ] find out why i can't test with CursorMoved-events (maybe because it's headless?)
 
+local async = require 'plenary.async'
 local screen = require 'launch.util.screen'
 local seq = require 'launch.util.seq'
---local cfg = require 'launch.configuration'
+local cfg = require 'launch.configuration'
 local view = require 'launch.util.view'
 local state = require 'launch.util.view.state'
 local bindings = require 'launch.util.view.bindings_gateway'
-local job = require 'plenary.job'
 local block = require 'launch.util.view.component'.block
 local popup = require 'plenary.popup'
+local script_handle = require 'launch.script_handle'
 
 local M = {}
 
-local scripts = {}
-local jobs = {}
+local scripts = state.new {}
+
+local function find_script(name)
+  for s in seq.from(scripts):iter() do
+    if s.name == name then return s end
+  end
+
+  return nil
+end
 
 function M.setup(config)
+  state.set(scripts, {})
+  config = config or {}
   M.extend(config.scripts or {})
+
+  async.run(function ()
+    local more_scripts = cfg.get()
+    M.extend(more_scripts)
+  end)
 end
 
 function M.extend(new_scripts)
-  for name, props in pairs(new_scripts) do
-    scripts[name] = state.new {
-      name = name,
-      cmd = props.cmd,
+  for s in seq.from(new_scripts):iter() do
+    state.append(scripts, {
+      name = s.name,
+      cmd = s.cmd,
+      display = s.display,
       is_running = false,
       bufnr = vim.api.nvim_create_buf(false, true)
-    }
+    })
   end
 end
 
 local function handle_for(name)
-  local script = scripts[name]
-
-  return setmetatable({
-    start = function (self)
-      if script.is_running then return end
-
-      local cmd_parts
-      if script.cmd:match('&&') then
-        cmd_parts = seq.from({vim.o.shell, vim.o.shellcmdflag, script.cmd})
-      else
-        cmd_parts = seq.from(vim.split(script.cmd, ' '))
-      end
-
-      local term_channel = vim.api.nvim_open_term(script.bufnr, {})
-
-      jobs[script.name] = job:new {
-        command = cmd_parts:pop(),
-        args = cmd_parts:collect(),
-        on_stdout = vim.schedule_wrap(function (err, line)
-          if err then
-            print(err)
-          end
-
-          if line then
-            vim.api.nvim_chan_send(term_channel, line..'\r\n')
-          end
-        end),
-        on_exit = vim.schedule_wrap(function ()
-          self.stop()
-        end)
-      }
-
-      jobs[script.name]:start()
-      script.is_running = true
-    end,
-    stop = function ()
-      if not script.is_running then return end
-
-      local j = jobs[script.name]
-      -- :shutdown just blocks for a second and then continues with :_shutdown anyway
-      j:_shutdown(0, 15)
-      j:join()
-      script.is_running = false
-
-      local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
-      while output[#output] == '' and #output > 0 do
-        output[#output] = nil
-      end
-      return { output = output }
-    end,
-    sync = function ()
-      if not script.is_running then return end
-
-      jobs[script.name]:join()
-      script.is_running = false
-
-      -- join too fast for chan_send? or maybe it's the schedule_wrap for on_stdout
-      -- anyway we need to briefly wait here till all the output is available in the buffer.
-      vim.cmd('sleep 10m')
-
-      local output = vim.api.nvim_buf_get_lines(script.bufnr, 0, -1, true)
-      while output[#output] == '' and #output > 0 do
-        output[#output] = nil
-      end
-      return { output = output }
-    end,
-    open_output_buffer = function (mods)
-      vim.cmd((mods or '') .. ' sbuffer '..script.bufnr)
-    end
-  }, {
-    __index = function (_, k)
-      return script[k]
-    end
-  })
+  local script = find_script(name)
+  if not script then return end
+  return script_handle.new(script)
 end
 
 function M.start(name)
@@ -129,74 +74,81 @@ function M.get(name)
 end
 
 function M.all()
-  return seq.keys(scripts)
+  return seq.from(scripts)
+    :map(function (x) return x.name end)
     :map(handle_for)
     :collect()
 end
 
 function M._names()
-  return seq.keys(scripts):collect()
+  return seq.from(scripts):map(function (x) return x.name end):collect()
 end
 
 local view_handle = nil
 function M.open_control_panel()
   if view_handle then return end
 
-  -- TODO: refactor
-  local output_buffer_win = nil
-  local u1, u2 = nil, nil
-
   local col, row, _, height = screen.rect_with {
-    width = 120,
+    width = 200,
     height = '90%',
     valign = 'center',
-    halign = 'center'
+    halign = 'center',
+    truncate = true
   }:unwrap()
 
-  view_handle = view.popup({
-    col = col, row = row, width = 40, height = height
+  view_handle = {
+    control_panel = nil,
+    output_buffer = nil
+  }
+  view_handle.control_panel = view.popup({
+    col = col, row = row, width = 80, height = height
   }, function (props)
-    return seq.from(props)
+    local script_entries = seq.from(props.scripts)
       :map(function (s)
         local function toggle()
           if s.is_running then
             M.stop(s.name)
           else
-            M(s.name)
+            M.start(s.name)
           end
         end
 
         local function show_output_buffer()
-          if output_buffer_win then
-            vim.api.nvim_win_hide(output_buffer_win)
-            u1()
-            u2()
+          if view_handle.output_buffer then
+            view_handle.output_buffer:teardown()
           end
-
-          output_buffer_win = popup.create(s.bufnr, {
-            border = true,
-            width = 80,
-            height = height,
-            minwidth = 80,
-            minheight = height,
-            maxwidth = 80,
-            maxheight = height,
-            row = row,
-            col = col + 42,
-            enter = false
-          })
 
           local function goto_control_panel()
-            vim.api.nvim_set_current_win(view_handle.winnr)
+            vim.api.nvim_set_current_win(view_handle.control_panel.winnr)
           end
-          u1 = bindings.register(s.bufnr, 'n', '<C-o>', goto_control_panel)
-          u2 = bindings.register(s.bufnr, 'n', '<C-w>h', goto_control_panel)
 
+          view_handle.output_buffer = {
+            winnr = vim.api.nvim_open_win(s.bufnr, false, {
+              relative = "editor",
+              width = 120,
+              height = height,
+              row = row,
+              col = col + 82,
+              border = "rounded"
+            }),
+            subscriptions = {
+              bindings.register(s.bufnr, 'n', '<C-o>', goto_control_panel),
+              bindings.register(s.bufnr, 'n', '<C-w>h', goto_control_panel)
+            },
+            teardown = function (self)
+              if vim.api.nvim_win_is_valid(self.winnr) then
+                vim.api.nvim_win_hide(self.winnr)
+              end
+              for unsubscribe in seq.from(self.subscriptions):iter() do
+                unsubscribe()
+              end
+            end
+          }
         end
 
         local function goto_output_buffer()
-          if not output_buffer_win then return end
-          vim.api.nvim_set_current_win(output_buffer_win)
+          if not view_handle.output_buffer then return end
+          vim.api.nvim_set_current_win(view_handle.output_buffer.winnr)
         end
 
         return block {
@@ -211,22 +163,41 @@ function M.open_control_panel()
           string.format('%s [%s]: %s',
             s.is_running and '⏹' or '▶',
             s.name,
-            s.cmd)
+            s.display or s.cmd)
         }
       end)
       :collect()
-  end, seq.values(scripts):collect())
+
+    return block {
+      on = {
+        ['q'] = function ()
+          M.close_control_panel()
+        end
+      },
+      script_entries
+    }
+  end, {scripts = scripts})
 
   vim.cmd(
     string.format(
       "autocmd WinClosed <buffer=%s> ++once :lua require 'launch'.close_control_panel()",
-      view_handle.bufnr))
+      view_handle.control_panel.bufnr))
 end
 
 function M.close_control_panel()
-  if not view_handle then return end
+  if view_handle == nil then return end
 
-  view_handle.teardown()
+  -- clean winclosed callback before we close so we don't recurse?
+  -- this is suboptimal but needs to do for now
+  vim.cmd(
+    string.format(
+      "au! WinClosed <buffer=%s>",
+      view_handle.control_panel.bufnr))
+
+  view_handle.control_panel.teardown()
+  if view_handle.output_buffer then
+    view_handle.output_buffer:teardown()
+  end
   view_handle = nil
 end
 
