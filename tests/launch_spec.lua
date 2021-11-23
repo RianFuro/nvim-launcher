@@ -236,19 +236,25 @@ describe('launch', function ()
     end)
 
     -- does not work for some reason
-    it.skip('opens up an output buffer for the hovered script', function ()
+    it('opens up an output buffer for the hovered script', function ()
       launch.setup({
         scripts = {
           {name = 'test', cmd = 'echo test'},
         }
       })
 
+      local handle = launch('test')
       launch.open_control_panel()
       local original_buf = vim.api.nvim_get_current_buf()
+
       vim.fn.setpos('.', {0, 1, 1, 0})
+      vim.cmd('doautocmd CursorMoved') -- need to fire manually, won't trigger during test
       vim.cmd('execute "normal \\<C-w>l"')
+
       assert.are_not.equal(original_buf, vim.api.nvim_get_current_buf())
-      local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+
+      handle:sync()
+      local lines = vim.api.nvim_buf_get_lines(0, 0, 1, false)
       assert.are.same({ 'test' }, lines)
     end)
   end)
@@ -278,4 +284,5 @@ end)
 -- [x] vim command for opening logs (with autocomplete)
 -- [x] colors!
 -- [ ] make sure scripts are executed from the project root as working directory, even when vims cwd is in a subdirectory
--- [ ] figure out why some tests just don't work (cursor moved events, switch to output buffer)
+-- [x] figure out why some tests just don't work (cursor moved events, switch to output buffer)
+-- -> The problem is always that CursorMoved won't fire. We can manually trigger it with `doautocmd` though.

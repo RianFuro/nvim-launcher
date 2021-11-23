@@ -424,9 +424,9 @@ describe('view', function ()
 
     vim.fn.setpos('.', {bufnr, 1, 1, 0})
     vim.cmd('normal! j')
+    vim.cmd('doautocmd CursorMoved')
 
-    -- Tested manually, but autocmd is not fired during testing
-    -- assert.is_true(trigger)
+    assert.is_true(trigger)
   end)
 
   describe('.popup', function ()
