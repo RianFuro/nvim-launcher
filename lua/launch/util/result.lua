@@ -82,7 +82,7 @@ function M.seq(cb)
   bind = function (...)
     local status = f.first(...)
     if not status then
-      print(vim.inspect(...))
+      return M(f.second(...), nil)
     end
     if (co.status(context) == "dead") then
       local result = f.second(...)

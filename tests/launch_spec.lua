@@ -1,5 +1,11 @@
+require 'tests.assertions'
+local mock = require 'luassert.mock'
 local launch = require 'launch'
+local result = require 'launch.util.result'
 local seq = require 'launch.util.seq'
+local fs = require 'launch.util.fs'
+local path = require 'plenary.path'
+local project = require 'launch.util.project'
 
 describe('launch', function ()
   it('can run a configured script', function ()
@@ -256,6 +262,110 @@ describe('launch', function ()
       handle:sync()
       local lines = vim.api.nvim_buf_get_lines(0, 0, 1, false)
       assert.are.same({ 'test' }, lines)
+    end)
+  end)
+
+  describe('npm_package', function ()
+    local mockFs = mock(fs, true)
+    local mockProject = mock(project, true)
+
+    after_each(function ()
+      mockFs.revert()
+      mockProject.revert()
+    end)
+
+    describe('exists', function ()
+      before_each(function ()
+        mockFs.read_file.on_call_with('/path/to/project/package.json').returns(result.success [[
+        {
+          "scripts": {
+            "start": "node server.js",
+            "test": "jest"
+          }
+        }
+        ]])
+        mockProject.guess_root.returns(result.success(path.new '/path/to/project'))
+        launch.setup()
+      end)
+
+      it('returns the entries from the `scripts` section of a `package.json` file', function ()
+        local scripts = seq.from(launch.all())
+          :map(function (x) return {name = x.name, cmd = x.cmd, display = x.display} end)
+          :collect()
+
+        assert.set_equal({
+          {name = 'start', cmd = "npm run start", display = 'node server.js'},
+          {name = 'test', cmd = "npm run test", display = 'jest'}
+        }, scripts)
+      end)
+    end)
+
+    describe('no package.json', function ()
+      before_each(function ()
+        mockFs.read_file.on_call_with('/path/to/project/package.json').returns(result.error())
+        mockProject.guess_root.returns(result.success(path.new '/path/to/project'))
+        launch.setup()
+      end)
+
+      it('returns an empty list', function ()
+        local scripts = launch.all()
+        assert.are.same({}, scripts)
+      end)
+    end)
+
+    describe('not in project', function ()
+      before_each(function ()
+        mockFs.read_file.returns(result.error())
+        mockProject.guess_root.returns(result.error())
+        launch.setup()
+      end)
+
+      it('returns an empty list', function ()
+        local scripts = launch.all()
+        assert.are.same({}, scripts)
+      end)
+    end)
+
+  end)
+
+  describe('composer', function ()
+    local mockFs = mock(fs, true)
+    local mockProject = mock(project, true)
+
+    after_each(function ()
+      mockFs.revert()
+      mockProject.revert()
+    end)
+
+    describe('exists', function ()
+      before_each(function ()
+        mockProject.guess_root.returns(result.success(path.new '/path/to/project'))
+        mockFs.read_file.on_call_with('/path/to/project/composer.json').returns(result.success [[
+        {
+          "scripts": {
+            "pre-install-cmd": "./something.sh",
+            "init": "setup.php",
+            "test": ["@clearCache", "phpunit"],
+            "clearCache": "rm -rf cache/*"
+          },
+          "script-descriptions": {
+            "clearCache": "Clear view cache"
+          }
+        }
+        ]])
+        launch.setup()
+      end)
+
+      it('returns a list of all user-defined scripts, skipping all event-based ones', function ()
+        local scripts = seq.from(launch.all())
+          :map(function (x) return {name = x.name, cmd = x.cmd, display = x.display} end)
+          :collect()
+
+        assert.set_equal({
+          {name = "test", cmd = "composer run-script test", display = "@clearCache; phpunit"},
+          {name = "clearCache", cmd = "composer run-script clearCache", display = "Clear view cache"}
+        }, scripts)
+      end)
     end)
   end)
 end)
